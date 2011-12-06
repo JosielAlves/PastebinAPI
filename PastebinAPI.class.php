@@ -21,11 +21,19 @@ class PastebinAPI
             'api_paste_private'=>$pastePrivate,
             'api_paste_expire_date'=>$pasteExpireDate
         );
-        $res=$this->makeRequest('api_post.php', $parameters);
-        if(filter_var($res, FILTER_VALIDATE_URL, FILTER_FLAG_SCHEME_REQUIRED|FILTER_FLAG_PATH_REQUIRED))
+        if(!$res=$this->makeRequest('api_post.php', $parameters))
         {
-            return $res;
+            return false;
         }
+        if(!$this->isErrorResponse($res))
+        {
+            if(filter_var($res, FILTER_VALIDATE_URL, FILTER_FLAG_SCHEME_REQUIRED|FILTER_FLAG_PATH_REQUIRED))
+            {
+                return $res;
+            }
+            return false;
+        }
+        trigger_error($res, E_USER_ERROR);
         return false;
     }
 
@@ -34,6 +42,15 @@ class PastebinAPI
         $parameters['api_dev_key']=$this->APIKey;
         $parameters=http_build_query($parameters, false, '&');
         return $parameters;
+    }
+
+    private function isErrorResponse($response)
+    {
+        if(stripos($response, "Bad API request, ")===0)
+        {
+            return true;
+        }
+        return false;
     }
 
     private function makeRequest($service, array $parameters=array())
