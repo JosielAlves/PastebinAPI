@@ -2,8 +2,7 @@
 class PastebinAPI
 {
     public $APIDevKey;
-    private $userAuthenticated;
-    private $APIUserKey;
+    private $APIUserKey=NULL;
 
     //Internal constants
     const APIBASEURL='http://pastebin.com/api/';
@@ -31,7 +30,6 @@ class PastebinAPI
         }
         if(!$this->isErrorResponse($res))
         {
-            $this->userAuthenticated=true;
             $this->APIUserKey=$res;
             return true;
         }
@@ -87,7 +85,7 @@ class PastebinAPI
 
     private function isUserLoggedIn()
     {
-        return (($this->userAuthenticated===true) && ($this->APIUserKey!==""));
+        return (($this->APIUserKey!==NULL));
     }
 
     private function makeRequest($service, array $parameters=array())
