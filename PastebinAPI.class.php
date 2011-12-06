@@ -1,9 +1,13 @@
 <?php
 class PastebinAPI
 {
-    public $APIKey;
+    public $APIDevKey;
+    private $userAuthenticated;
+    private $APIUserKey;
+
     //Internal constants
     const APIBASEURL='http://pastebin.com/api/';
+
     //API paste expire date constants
     const PASTE_EXPIRENEVER='N';
     const PASTE_EXPIRE10MINUTES='10M';
@@ -11,7 +15,31 @@ class PastebinAPI
     const PASTE_EXPIRE1DAY='1D';
     const PASTE_EXPIRE1MONTH='1M';
 
-    public function createPaste($pasteCode, $pasteName="", $pasteFormat="", $pastePrivate=0, $pasteExpireDate=self::PASTE_EXPIRENEVER)
+    public function authenticateUser($username, $password)
+    {
+        if((empty($username)) || (empty($password)))
+        {
+            return false;
+        }
+        $parameters=array(
+            'api_user_name'=>$username,
+            'api_user_password'=>$password
+        );
+        if(!$res=$this->makeRequest('api_login.php', $parameters))
+        {
+            return false;
+        }
+        if(!$this->isErrorResponse($res))
+        {
+            $this->userAuthenticated=true;
+            $this->APIUserKey=$res;
+            return true;
+        }
+        trigger_error($res, E_USER_ERROR);
+        return false;
+    }
+
+    public function createPaste($pasteCode, $pasteName="", $pasteFormat="", $pastePrivate=0, $pasteExpireDate=self::PASTE_EXPIRENEVER, $asGuest=true)
     {
         $parameters=array(
             'api_option'=>'paste',
@@ -21,6 +49,10 @@ class PastebinAPI
             'api_paste_private'=>$pastePrivate,
             'api_paste_expire_date'=>$pasteExpireDate
         );
+        if(($asGuest===false) && ($this->isUserLoggedIn()===true))
+        {
+            $parameters['api_user_key']=$this->APIUserKey;
+        }
         if(!$res=$this->makeRequest('api_post.php', $parameters))
         {
             return false;
@@ -37,9 +69,9 @@ class PastebinAPI
         return false;
     }
 
-    private function formatParameters(array $parameters)
+    private function buildParameters(array $parameters)
     {
-        $parameters['api_dev_key']=$this->APIKey;
+        $parameters['api_dev_key']=$this->APIDevKey;
         $parameters=http_build_query($parameters, false, '&');
         return $parameters;
     }
@@ -53,9 +85,14 @@ class PastebinAPI
         return false;
     }
 
+    private function isUserLoggedIn()
+    {
+        return (($this->userAuthenticated===true) && ($this->APIUserKey!==""));
+    }
+
     private function makeRequest($service, array $parameters=array())
     {
-        $parameters=$this->formatParameters($parameters);
+        $parameters=$this->buildParameters($parameters);
         $ch=curl_init();
         curl_setopt($ch, CURLOPT_URL, self::APIBASEURL . $service);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
